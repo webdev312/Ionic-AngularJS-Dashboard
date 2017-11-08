@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html ng-app="iot">
+
+<head>
+    <meta charset="utf-8">
+    <title>Controlr | Hybrid Mobile IoT Application</title>
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, width=device-width">
+
+    <script type="text/javascript" src="https://pubnub.github.io/eon/v/eon/1.0.0/eon.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://pubnub.github.io/eon/v/eon/1.0.0/eon.css" />
+
+    <link href="css/ionic.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="js/Chart.min.js"></script>
+    <script src="js/ionic.bundle.min.js"></script>
+    <script src="js/angular-chart.js"></script>
+    <script src='http://d3js.org/d3.v3.min.js'></script>
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.4.4.0.js"></script>
+    <!-- google maps javascript -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB16sGmIekuGIvYOfNoW9T44377IU2d2Es&sensor=true"></script>
+    <script src="js/app.js"></script>
+    <!-- Needed for Cordova/PhoneGap (will be a 404 during development) -->
+    <script src="cordova.js"></script>
+</head>
+
+<body ng-controller="MainCtrl">
+    <script>
+        (function(i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r;
+            i[r] = i[r] || function() {
+                (i[r].q = i[r].q || []).push(arguments)
+            }, i[r].l = 1 * new Date();
+            a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0];
+            a.async = 1;
+            a.src = g;
+            m.parentNode.insertBefore(a, m)
+        })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+
+        ga('create', 'UA-43849642-1', 'sergshepelevich.com');
+        ga('send', 'pageview');
+    </script>
+    <ion-nav-view animation="slide-left-right"></ion-nav-view>
+    <script id="templates/actions.html" type="text/ng-template">
+        <ion-view title="Actions" ng-controller="Actions">
+            <ion-content class="padding-vertical">
+                <div ng-repeat="action in actions">
+                    <div class="col-lg-50" on-hold="actionHold(action)">
+                        <li ng-if="action.type === 'range'" class="item">
+                            {{ action.name }}
+                            <span class="item-note">
+									{{ action.value }}{{ action.units }}
+								</span>
+                        </li>
+                        <div ng-if="action.type === 'range'" class="item range range-balanced">
+                            <i class="icon" ng-class="action.iconBefore"></i>
+                            <input type="range" ng-model="action.value" name="{{ action.id }}_action" min="{{ action.minValue }}" max="{{ action.maxValue }}">
+                            <i class="icon" ng-class="action.iconAfter"></i>
+                        </div>
+                        <div ng-if="action.type === 'toggle'" class="item item-toggle">
+                            {{ action.name }}
+                            <label class="toggle toggle-balanced">
+								<input type="checkbox" ng-checked="action.state === 'on'">
+								<div class="track">
+									<div class="handle"></div>
+								</div>
+								</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/add-action.html" type="text/ng-template">
+        <ion-view title="Add New Action" ng-controller="addAction">
+            <ion-content>
+                <form name="addActionForm" ng-init="setFormScope(this)" data-ng-submit="actionSubmit()">
+                    <div class="list" style="background:#ffffff;">
+                        <div class="item item-divider">
+                            Action Info
+                        </div>
+                        <label class="item item-input item-stacked-label">
+								<span class="input-label">Name</span>
+								<input type="text" placeholder="Name" ng-model="newaction.name">
+							</label>
+                        <label class="item item-input item-select">
+								<div class="input-label">
+								Action Type
+								</div>
+								<select ng-model="newaction.type">
+									<option value="range">Range</option>
+									<option value="toggle">Toggle</option>
+								</select>
+							</label>
+                        <div ng-if="newaction.type == 'range'">
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Default Value</span>
+									<input type="number" placeholder="50" ng-model="newaction.value">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Min Value</span>
+									<input type="number" placeholder="0" ng-model="newaction.minValue">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Max Value</span>
+									<input type="number" placeholder="100" ng-model="newaction.maxValue">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Value Units (%, degrees, L, etc.)</span>
+									<input type="text" placeholder="%" ng-model="newaction.units">
+								</label>
+                            <div class="item item-divider">
+                                Icons
+                            </div>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Left Icon</span>
+									<input type="text" placeholder="ion-ios7-lightbulb-outline" ng-model="newaction.iconBefore">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Right Icon</span>
+									<input type="text" placeholder="ion-ios7-lightbulb" ng-model="newaction.iconAfter">
+								</label>
+                        </div>
+                        <div ng-if="newaction.type == 'toggle'">
+                            <label class="item item-input">
+									<div class="input-label">
+									Default State:
+									</div>
+								</label>
+                            <label class="item item-radio">
+									<input type="radio" ng-model="newaction.state" value="on">
+									<div class="item-content">
+									On
+									</div>
+									<i class="radio-icon ion-checkmark"></i>
+								</label>
+                            <label class="item item-radio">
+									<input type="radio" ng-model="newaction.state" value="off">
+									<div class="item-content">
+									Off
+									</div>
+									<i class="radio-icon ion-checkmark"></i>
+								</label>
+                        </div>
+                        <div class="item item-divider">
+                            According Device
+                        </div>
+                        <label class="item item-input item-select">
+								<div class="input-label">
+								Device
+								</div>
+								<select ng-model="newaction.deviceSelect" ng-options="device.id as device.name for device in devices"></select>
+							</label>
+                        <label class="item item-input item-stacked-label">
+								<span class="input-label">Custom Action Script</span>
+								<textarea ng-model="newaction.script" rows="4" name="text" placeholder="$scope.custonFunction = function() {
+				console.log('Value Change', $scope.notification.checked);
+			  };"></textarea>
+							</label>
+                        <div class="item item-divider">
+                            Featured
+                        </div>
+                        <li class="item item-toggle">
+                            Featured
+                            <label class="toggle toggle-balanced">
+									<input type="checkbox" checked ng-model="newaction.featured">
+									<div class="track">
+										<div class="handle"></div>
+									</div>
+								</label>
+                        </li>
+                    </div>
+                    <div class="padding">
+                        <button class="button button-balanced">
+								Add Action
+							</button>
+                    </div>
+                </form>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/add-device.html" type="text/ng-template">
+        <ion-view title="Add New Device" ng-controller="addDevice">
+            <ion-content>
+                <form name="addDeviceForm" ng-init="setFormScope(this)" data-ng-submit="deviceSubmit()">
+                    <div class="list" style="background:#ffffff;">
+                        <div class="item item-divider">
+                            Device Info
+                        </div>
+                        <label class="item item-input item-stacked-label">
+								<span class="input-label">Name</span>
+								<input type="text" placeholder="Name" ng-model="newdevice.name">
+							</label>
+                        <label class="item item-input item-stacked-label">
+								<span class="input-label">Icon</span>
+								<input type="text" placeholder="Icon" ng-model="newdevice.icon">
+							</label>
+                        <div class="item item-divider">
+                            Admin
+                        </div>
+                        <label class="item item-input item-select">
+								<div class="input-label">
+								Select a User
+								</div>
+								<select ng-model="newdevice.userSelect" ng-options="o.id as o.username for o in users"></select>
+							</label>
+                        <div class="item item-divider">
+                            Location
+                        </div>
+                        <label class="item item-input item-select">
+								<div class="input-label">
+								Select a Location
+								</div>
+								<select ng-model="newdevice.locationSelect" ng-options="o.id as o.name for o in locations"></select>
+							</label>
+                        <div class="item item-divider">
+                            Select Action
+                        </div>
+                        <label class="item item-input item-select">
+								<div class="input-label">
+								Action
+								</div>
+								<select ng-model="newdevice.actionSelect" ng-options="o.id as o.name for o in actions"></select>
+							</label>
+                        <div class="item item-divider">
+                            Featured
+                        </div>
+                        <li class="item item-toggle">
+                            Featured
+                            <label class="toggle toggle-balanced">
+									<input type="checkbox" checked ng-model="newdevice.featured">
+									<div class="track">
+										<div class="handle"></div>
+									</div>
+								</label>
+                        </li>
+                    </div>
+                    <div class="padding">
+                        <button class="button button-balanced">
+								Add Device
+							</button>
+                    </div>
+                </form>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/add-location.html" type="text/ng-template">
+        <ion-view title="Add New Location" ng-controller="addLocation">
+            <ion-content>
+                <form name="addLocationForm" ng-init="setFormScope(this)" data-ng-submit="locationSubmit()">
+                    <div class="list">
+                        <label class="item item-input">
+								<input type="text" placeholder="Name" ng-model="newlocation.name">
+							</label>
+                        <label class="item item-input">
+								<input type="text" placeholder="Icon" ng-model="newlocation.icon">
+							</label>
+                        <label class="item item-input">
+								<input type="text" placeholder="Note" ng-model="newlocation.note">
+							</label>
+                        <li class="item item-toggle">
+                            Featured
+                            <label class="toggle toggle-balanced">
+									<input type="checkbox" checked ng-model="newlocation.featured">
+									<div class="track">
+										<div class="handle"></div>
+									</div>
+								</label>
+                        </li>
+                    </div>
+                    <div class="padding">
+                        <button class="button button-balanced">
+								Add Location
+							</button>
+                    </div>
+                </form>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/add-user.html" type="text/ng-template">
+        <ion-view title="Add New User" ng-controller="addUser">
+            <ion-content>
+                <form name="addUserForm" ng-init="setFormScope(this)" data-ng-submit="userSubmit()">
+                    <div class="list">
+                        <div class="item item-divider">
+                            User Info
+                        </div>
+                        <label class="item item-input">
+								<input type="text" placeholder="Username" ng-model="newuser.username">
+							</label>
+                        <label class="item item-input">
+								<input type="email" placeholder="Email" ng-model="newuser.email">
+							</label>
+                        <label class="item item-input">
+								<input type="text" placeholder="Image" ng-model="newuser.avatar">
+							</label>
+                        <div class="item item-divider">
+                            Tracking
+                        </div>
+                        <li class="item item-toggle">
+                            Show Location
+                            <label class="toggle toggle-balanced">
+									<input type="checkbox" checked ng-model="newuser.location">
+									<div class="track">
+										<div class="handle"></div>
+									</div>
+								</label>
+                        </li>
+                    </div>
+                    <div class="padding">
+                        <button class="button button-balanced">
+								Add User
+							</button>
+                    </div>
+                </form>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/alerts.html" type="text/ng-template">
+        <ion-popover-view>
+            <ion-header-bar>
+                <h1 class="title">You have 5 notifications</h1>
+            </ion-header-bar>
+            <ion-content>
+                <div class="list">
+                    <a class="item item-icon-left" href="#">
+                        <i class="icon ion-waterdrop"></i> WC
+                        <span class="item-note">
+							Occupied
+							</span>
+                        <h6>1 minute ago</h6>
+                    </a>
+                    <a class="item item-icon-left" href="#">
+                        <i class="icon ion-coffee"></i> Coffee Machine
+                        <span class="item-note">
+							Finished
+							</span>
+                        <h6>14 minute ago</h6>
+                    </a>
+                    <a class="item item-avatar" href="#">
+                        <img src="img/girl.jpg">
+                        <h2>Stasy</h2>
+                        <h6>At home</h6>
+                    </a>
+                    <a class="item item-icon-left" href="#">
+                        <i class="icon ion-waterdrop"></i> WC
+                        <span class="item-note">
+							Free
+							</span>
+                        <h6>An hour ago</h6>
+                    </a>
+                    <a class="item item-icon-left" href="#">
+                        <i class="icon ion-model-s"></i> Garage
+                        <span class="item-note">
+							Car Inside
+							</span>
+                        <h6>6 hours ago</h6>
+                    </a>
+                </div>
+            </ion-content>
+            <ion-footer-bar class="bar-balanced">
+                <button class="button button-light pull-right" ng-click="closeAlerts($event)">Close</button>
+            </ion-footer-bar>
+        </ion-popover-view>
+    </script>
+    <script id="templates/charts.html" type="text/ng-template">
+        <ion-view title="Charts" ng-controller="Charts">
+            <ion-content class="padding">
+                <div class="row chart-wrap">
+                    <div class="col">
+                        <h4>Line Chart</h4>
+                        <canvas id="line2" class="chart chart-line" options="options" data="linedata" labels="linelabels" legend="true" series="lineseries"></canvas>
+                    </div>
+                </div>
+                <div class="row chart-wrap">
+                    <div class="col">
+                        <h4>Bar Chart</h4>
+                        <canvas id="bar" class="chart chart-bar" options="options" data="bardata" labels="barlabels" legend="true" series="barseries"></canvas>
+                    </div>
+                </div>
+                <div class="row chart-wrap responsive-lg">
+                    <div class="col-50">
+                        <h4>Polar Chart</h4>
+                        <canvas id="polar-area" class="chart chart-polar-area" data="polarData" labels="polarLabels"></canvas>
+                    </div>
+                    <div class="col-50">
+                        <h4>Doughnut Chart</h4>
+                        <canvas id="doughnut" class="chart chart-doughnut" data="doughnutData" labels="doughnutLabels"></canvas>
+                    </div>
+                </div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/dashboard.html" type="text/ng-template">
+        <ion-view title="Dashboard" ng-controller="Dashboard">
+            <ion-tabs class="nav-title-slide-ios7 tabs-striped tabs-icon-top tabs-top tabs-background-light tabs-balanced" animation="nav-title-slide-ios7">
+                <ion-tab title="Home" icon-on="ion-ios7-home" icon-off="ion-ios7-home-outline" href="#/route/dashboard/home">
+                    <ion-nav-view name="home-tab"></ion-nav-view>
+                </ion-tab>
+                <ion-tab title="Favorites" icon-on="ion-ios7-star" icon-off="ion-ios7-star-outline" href="#/route/dashboard/favorites">
+                    <ion-nav-view name="favorites-tab"></ion-nav-view>
+                </ion-tab>
+                <ion-tab title="Settings" icon-on="ion-ios7-settings-strong" icon-off="ion-ios7-settings" href="#/route/dashboard/settings">
+                    <ion-nav-view name="settings-tab"></ion-nav-view>
+                </ion-tab>
+            </ion-tabs>
+        </ion-view>
+    </script>
+    <script id="templates/devices.html" type="text/ng-template">
+        <ion-view title="Devices">
+            <ion-content class="padding-vertical">
+                <div class="padding-horizontal">
+                    <h4>Wi-Fi Camera Snapshots</h4>
+                </div>
+                <wrap-owlcarousel class="owl-carousel padding" data-options="{
+							autoPlay: false,
+							slideSpeed : 300,
+							paginationSpeed : 400,
+							items: 3,
+							itemsDesktop: [1199,3],
+							itemsTablet: [768,2],
+							itemsMobile: [479,1],
+							navigation: true,
+						}">
+                    <div class="owl-item">
+                        <img src="img/room1.jpg" />
+                    </div>
+                    <div class="owl-item">
+                        <img src="img/room2.jpg" />
+                    </div>
+                    <div class="owl-item">
+                        <img src="img/room1.jpg" />
+                    </div>
+                    <div class="owl-item">
+                        <img src="img/room2.jpg" />
+                    </div>
+                </wrap-owlcarousel>
+                <div ng-repeat="device in devices">
+                    <div class="col-lg-50">
+                        <div class="item item-icon-left" on-tap="deviceTap('router.device', device)">
+                            <i class="icon" ng-class="device.icon"></i> {{ device.name }}
+                            <span class="item-note" ng-class="device.color">
+								{{ device.status }}
+								</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/device-single.html" type="text/ng-template">
+        <ion-view title="{{device.name}}">
+            <ion-content class="padding">
+                <div ng-if="device.id === null">
+                    <h5 class="text-center">No Devices to Show</h5>
+                </div>
+                <div ng-if="device.id != null">
+                    <div class="list">
+                        <div class="item item-icon-left">
+                            <i class="icon" ng-class="device.icon"></i> {{device.name}}
+                            <span class="item-note">
+								{{device.status}}
+								</span>
+                        </div>
+                        <li ng-if="(actions | filter:{id:device.actionSelect})[0].type === 'range'" class="item">
+                            {{ (actions | filter:{id:device.actionSelect})[0].name }}
+                            <span class="item-note">
+									{{ (actions | filter:{id:device.actionSelect})[0].value }}{{ (actions | filter:{id:device.actionSelect})[0].units }}
+								</span>
+                        </li>
+                        <div ng-if="(actions | filter:{id:device.actionSelect})[0].type === 'range'" class="item range range-balanced">
+                            <i class="icon" ng-class="(actions | filter:{id:device.actionSelect})[0].iconBefore"></i>
+                            <input type="range" ng-model="(actions | filter:{id:device.actionSelect})[0].value" name="{{ (actions | filter:{id:device.actionSelect})[0].id }}_action" min="{{ (actions | filter:{id:device.actionSelect})[0].minValue }}" max="{{ (actions | filter:{id:device.actionSelect})[0].maxValue }}">
+                            <i class="icon" ng-class="(actions | filter:{id:device.actionSelect})[0].iconAfter"></i>
+                        </div>
+                        <div ng-if="(actions | filter:{id:device.actionSelect})[0].type === 'toggle'" class="item item-toggle">
+                            {{ (actions | filter:{id:device.actionSelect})[0].name }}
+                            <label class="toggle toggle-balanced">
+								<input type="checkbox" ng-checked="(actions | filter:{id:device.actionSelect})[0].state === 'on'">
+								<div class="track">
+									<div class="handle"></div>
+								</div>
+								</label>
+                        </div>
+                        <div class="item item-divider">
+                            Device Info
+                        </div>
+                        <li class="item item-toggle">
+                            Featured
+                            <label class="toggle toggle-balanced">
+									<input type="checkbox" checked ng-model="device.featured">
+									<div class="track">
+										<div class="handle"></div>
+									</div>
+								</label>
+                        </li>
+                        <div class="item item-divider">
+                            Members
+                        </div>
+                        <div class="item item-thumbnail-left">
+                            <img ng-src="{{(users | filter:{id:device.userSelect})[0].avatar}}">
+                            <h2>{{(users | filter:{id:device.userSelect})[0].username}}</h2>
+                            <p>{{(users | filter:{id:device.userSelect})[0].lastLogin}}</p>
+                        </div>
+                    </div>
+                </div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/edit-action.html" type="text/ng-template">
+        <ion-modal-view>
+            <ion-header-bar class="bar bar-header bar-balanced">
+                <h1 class="title">Edit Action</h1>
+                <button class="button button-clear button-primary" ng-click="modal.hide()">Cancel</button>
+            </ion-header-bar>
+            <ion-content>
+                <form name="editActionForm">
+                    <div class="list" style="background:#ffffff;">
+                        <div class="item item-divider">
+                            Action Info
+                        </div>
+                        <label class="item item-input item-stacked-label">
+								<span class="input-label">Name</span>
+								<input type="text" placeholder="Name" ng-model="editaction.name">
+							</label>
+                        <label class="item item-input item-select">
+								<div class="input-label">
+								Action Type
+								</div>
+								<select ng-model="editaction.type">
+									<option value="range">Range</option>
+									<option value="toggle">Toggle</option>
+								</select>
+							</label>
+                        <div ng-if="editaction.type == 'range'">
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Default Value</span>
+									<input type="number" placeholder="50" ng-model="editaction.value">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Min Value</span>
+									<input type="number" placeholder="0" ng-model="editaction.minValue">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Max Value</span>
+									<input type="number" placeholder="100" ng-model="editaction.maxValue">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Value Units (%, degrees, L, etc.)</span>
+									<input type="text" placeholder="%" ng-model="editaction.units">
+								</label>
+                            <div class="item item-divider">
+                                Icons
+                            </div>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Left Icon</span>
+									<input type="text" placeholder="ion-ios7-lightbulb-outline" ng-model="editaction.iconBefore">
+								</label>
+                            <label class="item item-input item-stacked-label">
+									<span class="input-label">Right Icon</span>
+									<input type="text" placeholder="ion-ios7-lightbulb" ng-model="editaction.iconAfter">
+								</label>
+                        </div>
+                        <div ng-if="editaction.type == 'toggle'">
+                            <label class="item item-input">
+									<div class="input-label">
+									Default State:
+									</div>
+								</label>
+                            <label class="item item-radio">
+									<input type="radio" ng-model="editaction.state" value="on">
+									<div class="item-content">
+									On
+									</div>
+									<i class="radio-icon ion-checkmark"></i>
+								</label>
+                            <label class="item item-radio">
+									<input type="radio" ng-model="editaction.state" value="off">
+									<div class="item-content">
+									Off
+									</div>
+									<i class="radio-icon ion-checkmark"></i>
+								</label>
+                        </div>
+                        <div class="item item-divider">
+                            According Device
+                        </div>
+                        <label class="item item-input item-select">
+								<div class="input-label">
+								Select a Device
+								</div>
+								<select ng-model="editaction.deviceSelect" ng-options="device as device.name for device in devices"></select>
+							</label>
+                        <label class="item item-input item-stacked-label">
+								<span class="input-label">Custom Action Script</span>
+								<textarea ng-model="editaction.script" rows="4" name="text" placeholder="$scope.custonFunction = function() {
+				console.log('Value Change', $scope.notification.checked);
+			  };"></textarea>
+							</label>
+                        <div class="item item-divider">
+                            Featured
+                        </div>
+                        <li class="item item-toggle">
+                            Featured
+                            <label class="toggle toggle-balanced">
+									<input type="checkbox" checked ng-model="editaction.featured">
+									<div class="track">
+										<div class="handle"></div>
+									</div>
+								</label>
+                        </li>
+                    </div>
+                    <div class="padding">
+                        <button class="button button-balanced">
+								Save
+							</button>
+                    </div>
+                </form>
+            </ion-content>
+        </ion-modal-view>
+    </script>
+    <script id="templates/favorites.html" type="text/ng-template">
+        <ion-view title="Favorites">
+            <ion-content>
+                <div class="padding">
+                    <div class="item item-divider">
+                        Featured Actions
+                    </div>
+                </div>
+                <div ng-repeat="action in actions | filter: { featured: true}">
+                    <div class="col-lg-50 padding-horizontal">
+                        <li ng-if="action.type === 'range'" class="item">
+                            {{ action.name }}
+                            <span class="item-note">
+									{{ action.value }}{{ action.units }}
+								</span>
+                        </li>
+                        <div ng-if="action.type === 'range'" class="item range range-balanced">
+                            <i class="icon" ng-class="action.iconBefore"></i>
+                            <input type="range" ng-model="action.value" name="{{ action.id }}_action" min="{{ action.minValue }}" max="{{ action.maxValue }}">
+                            <i class="icon" ng-class="action.iconAfter"></i>
+                        </div>
+                        <div ng-if="action.type === 'toggle'" class="item item-toggle">
+                            {{ action.name }}
+                            <label class="toggle toggle-balanced">
+								<input type="checkbox" ng-checked="action.state === 'on'">
+								<div class="track">
+									<div class="handle"></div>
+								</div>
+								</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+                <div class="padding">
+                    <div class="item item-divider">
+                        Featured Places
+                    </div>
+                </div>
+                <div ng-repeat="location in locations | filter: { featured: true}">
+                    <div class="col-lg-50 padding-horizontal">
+                        <div class="item item-icon-left">
+                            <i class="icon" ng-class="location.icon"></i> {{ location.name }}
+                            <span class="item-note">
+								{{ location.note }}
+								</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+                <div class="padding">
+                    <div class="item item-divider">
+                        Featured Devices
+                    </div>
+                </div>
+                <div ng-repeat="device in devices | filter: { featured: true}">
+                    <div class="col-lg-50 padding-horizontal">
+                        <div class="item item-icon-left" on-tap="deviceTap('router.device', device)">
+                            <i class="icon" ng-class="device.icon"></i> {{ device.name }}
+                            <span class="item-note" ng-class="device.color">
+								{{ device.status }}
+								</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/home.html" type="text/ng-template">
+        <ion-view title="<img src='img/logo.png' class='img-responsive'>">
+            <ion-content>
+                <div class="row chart-wrap responsive-lg responsive-md responsive-sm" ng-init="myload()">
+                    <div class="col-25" id="id_temperature" ng-click="tapChart(1)">
+                        <h5>Temperature</h5>
+                        <div id='chart_temp' style="text-align : center"></div>
+                        <!--<div id="line-1" style="text-align : center"></div>-->
+                    </div>
+                    <div class="col-25" id="id_humidity" ng-click="tapChart(2)">
+                        <h5>Humidity</h5>
+                        <div id='chart_humi' style="text-align : center"></div>
+                        <!--<div id="line-2" style="text-align : center"></div>-->
+                    </div>
+                    <div class="col-25" id="id_co2" ng-click="tapChart(3)">
+                        <h5>CO2</h5>
+                        <div id='chart_co2' style="text-align : center"></div>
+                        <!--<div id="line-3" style="text-align : center"></div>-->
+                    </div>
+                    <div class="col-25">
+                        <h5>Light</h5>
+                        <div style="text-align : center;">
+                            <img id="light" src="" style="width : 70px; margin-top : 18px;" />
+                        </div>
+                    </div>
+                </div>
+                <div class="padding">
+                    <div class="item item-divider">
+                        Featured Actions
+                    </div>
+                </div>
+                <div ng-repeat="action in actions | filter: { featured: true}">
+                    <div class="col-lg-50 padding-horizontal">
+                        <li ng-if="action.type === 'range'" class="item">
+                            {{ action.name }}
+                            <span class="item-note">
+									{{ action.value }}{{ action.units }}
+								</span>
+                        </li>
+                        <div ng-if="action.type === 'range'" class="item range range-balanced">
+                            <i class="icon" ng-class="action.iconBefore"></i>
+                            <input type="range" ng-model="action.value" name="{{ action.id }}_action" min="{{ action.minValue }}" max="{{ action.maxValue }}">
+                            <i class="icon" ng-class="action.iconAfter"></i>
+                        </div>
+                        <div ng-if="action.type === 'toggle'" class="item item-toggle">
+                            {{ action.name }}
+                            <label class="toggle toggle-balanced">
+								<input type="checkbox" ng-checked="action.state === 'on'">
+								<div class="track">
+									<div class="handle"></div>
+								</div>
+								</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+                <div class="padding">
+                    <div class="item item-divider">
+                        Featured Places
+                    </div>
+                </div>
+                <div ng-repeat="location in locations | filter: { featured: true}">
+                    <div class="col-lg-50 padding-horizontal">
+                        <div class="item item-icon-left">
+                            <i class="icon" ng-class="location.icon"></i> {{ location.name }}
+                            <span class="item-note">
+								{{ location.note }}
+								</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+                <div class="padding">
+                    <div class="item item-divider">
+                        Featured Devices
+                    </div>
+                </div>
+                <div ng-repeat="device in devices | filter: { featured: true}">
+                    <div class="col-lg-50 padding-horizontal">
+                        <div class="item item-icon-left" on-tap="deviceTap('router.device', device)">
+                            <i class="icon" ng-class="device.icon"></i> {{ device.name }}
+                            <span class="item-note" ng-class="device.color">
+								{{ device.status }}
+								</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/detailchart.html" type="text/ng-template">
+        <ion-view title="Charts" ng-controller="detailchart">
+            <ion-content class="padding">
+                <!--<div class="row chart-wrap">
+                    <div class="col">
+                        <h4>Temperature</h4>
+                        <canvas id="line1" class="chart chart-line" data="data1" options="options" labels="labels"></canvas>
+                    </div>
+                </div>
+                <div class="row chart-wrap">
+                    <div class="col">
+                        <h4>Humidity</h4>
+                        <canvas id="line2" class="chart chart-line" data="data2" options="options" labels="labels"></canvas>
+                    </div>
+                </div>
+                <div class="row chart-wrap">
+                    <div class="col">
+                        <h4>CO2</h4>
+                        <canvas id="line3" class="chart chart-line" data="data3" options="options" labels="labels"></canvas>
+                    </div>
+                </div>-->
+                <div id="chart"></div>
+                <div id="temp"></div>
+                <div id="humd"></div>
+                <div id="co2"></div>
+
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/intro.html" type="text/ng-template">
+        <ion-view title="Intro" ng-controller="Intro">
+            <ion-content padding="false">
+                <ion-slide-box id="intro-slide-box" show-pager="false">
+                    <ion-slide>
+                        <div class="row">
+                            <div class="text-center col col-center">
+                                <img src="img/logo-inverted.png" class="img-responsive" alt="Logo">
+                                <p class="stable">Controlr is a hybrid mobile application template inspired by the Internet of Things conception.<br>Tap next to set-up your application or just skip to start instantly</p>
+                                <div class="padding-bottom">
+                                    <a href="#/route/dashboard/home" class="button button-balanced">
+											Skip Intro
+										</a>
+                                    <button ng-click="nextSlide()" class="button button-balanced icon-right ion-ios7-arrow-right">
+											<span class="font-family-default">Next</span>
+										</button>
+                                </div>
+                            </div>
+                            <div style="height:100vh;"></div>
+                        </div>
+                    </ion-slide>
+                    <ion-slide>
+                        <div class="row">
+                            <div class="text-center col col-center">
+                                <h4 class="light">Controlr Service Login</h4>
+                                <div class="list">
+                                    <label class="item item-input">
+											<span class="input-label">Username</span>
+											<input type="text">
+										</label>
+                                    <label class="item item-input">
+											<span class="input-label">Password</span>
+											<input type="password">
+										</label>
+                                </div>
+                                <div class="padding-bottom">
+                                    <button ng-click="prevSlide()" class="button button-balanced icon-left ion-ios7-arrow-left">
+											<span class="font-family-default">Prev</span>
+										</button>
+                                    <a href="#/route/dashboard/home" class="button button-balanced">
+											Skip Intro
+										</a>
+                                    <button ng-click="login()" class="button button-balanced icon-right ion-ios7-arrow-right">
+											<span class="font-family-default">Log In</span>
+										</button>
+                                </div>
+                                <div class="text-center">
+                                    <p><button ng-click="showRegister()" class="button button-clear button-light">Not a Member?</button></p>
+                                </div>
+                            </div>
+                            <div style="height:100vh;"></div>
+                        </div>
+                    </ion-slide>
+                    <ion-slide>
+                        <div class="row">
+                            <div class="col col-center">
+                                <h3 class="text-center light">Well Done!</h3>
+                                <div class="text-center light">
+                                    <p>Now you are ready to control your smart things!</p>
+                                    <img class="responsive-image" src="img/smart-home.png" alt="Smart Home">
+                                </div>
+                                <div class="text-center padding-vertical ">
+                                    <button ng-click="prevSlide() " class="button button-balanced icon-left ion-ios7-arrow-left ">
+											<span class="font-family-default ">Prev</span>
+										</button>
+                                    <a href="#/route/dashboard/home " class="button button-balanced ">
+											Start
+										</a>
+                                </div>
+                            </div>
+                            <div style="height:100vh; "></div>
+                        </div>
+                    </ion-slide>
+                </ion-slide-box>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/locations.html " type="text/ng-template ">
+        <ion-view title="Locations ">
+            <ion-content class="padding-vertical ">
+                <div ng-repeat="location in locations ">
+                    <div class="col-lg-50 ">
+                        <div class="item item-icon-left " href="# ">
+                            <i class="icon " ng-class="location.icon "></i> {{ location.name }}
+                            <span class="item-note ">
+								{{ location.note }}
+								</span>
+                        </div>
+                    </div>
+                </div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/settings.html " type="text/ng-template ">
+        <ion-view title="Settings ">
+            <ion-content>
+                <ul class="list ">
+                    <div class="item item-divider ">
+                        General Settings
+                    </div>
+                    <li class="item item-toggle ">
+                        Notifications
+                        <label class="toggle toggle-balanced ">
+								<input type="checkbox " checked>
+								<div class="track ">
+								<div class="handle "></div>
+								</div>
+							</label>
+                    </li>
+                    <li class="item item-toggle ">
+                        Location Services
+                        <label class="toggle toggle-balanced ">
+								<input type="checkbox ">
+								<div class="track ">
+								<div class="handle "></div>
+								</div>
+							</label>
+                    </li>
+                    <li class="item item-toggle ">
+                        Use Google Maps
+                        <label class="toggle toggle-balanced ">
+								<input type="checkbox " checked>
+								<div class="track ">
+								<div class="handle "></div>
+								</div>
+							</label>
+                    </li>
+                    <label class="item item-input ">
+							<span class="input-label ">Google Maps API Key</span>
+							<input type="text " value="AIzaSyB16sGmIekuGIvYOfNoW9T44377IU2d2Es ">
+						</label>
+                    <div class="item item-divider ">
+                        API Settings
+                    </div>
+                    <label class="item item-radio ">
+							<input type="radio " name="group ">
+							<div class="item-content ">
+							XML
+							</div>
+							<i class="radio-icon ion-checkmark "></i>
+						</label>
+                    <label class="item item-radio ">
+							<input type="radio " name="group " checked>
+							<div class="item-content ">
+							JSON
+							</div>
+							<i class="radio-icon ion-checkmark "></i>
+						</label>
+                    <label class="item item-input item-select ">
+							<div class="input-label ">
+							Web API
+							</div>
+							<select>
+								<option>SOAP</option>
+								<option selected>REST</option>
+							</select>
+						</label>
+                    <div class="item item-divider ">
+                        Notifications Settings
+                    </div>
+                    <li class="item item-checkbox ">
+                        <label class="checkbox ">
+							<input type="checkbox " checked>
+							</label> Urgent Alerts
+                    </li>
+                    <li class="item item-checkbox ">
+                        <label class="checkbox ">
+							<input type="checkbox " checked>
+							</label> Devices Notifications
+                    </li>
+                    <li class="item item-checkbox ">
+                        <label class="checkbox ">
+							<input type="checkbox " checked>
+							</label> Users Notifications
+                    </li>
+                    <li class="item item-checkbox ">
+                        <label class="checkbox ">
+							<input type="checkbox ">
+							</label> Device Not Responding
+                    </li>
+                    <li class="item item-checkbox ">
+                        <label class="checkbox ">
+							<input type="checkbox ">
+							</label> Connection Lost
+                    </li>
+                </ul>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script id="templates/side-menu-left.html " type="text/ng-template ">
+        <ion-side-menus>
+            <ion-side-menu-content>
+                <ion-nav-bar class="bar-light " animation="nav-title-slide-ios7 ">
+                    <ion-nav-back-button class="button-icon ion-arrow-left-c ">
+                    </ion-nav-back-button>
+                </ion-nav-bar>
+                <ion-nav-buttons side="left ">
+                    <button class="button button-icon ion-navicon " ng-click="toggleLeft() " ng-hide="$exposeAside.active "></button>
+                </ion-nav-buttons>
+                <ion-nav-buttons side="right ">
+                    <a class="button button-icon icon ion-ios7-email-outline " ng-click="openAlerts($event) "><span class="badge badge-balanced ">5</span></a>
+                </ion-nav-buttons>
+                <ion-nav-view name="menuContent "></ion-nav-view>
+            </ion-side-menu-content>
+            <ion-side-menu expose-aside-when="large ">
+                <ion-header-bar class="bar-balanced ">
+                    <h1 class="title ">Menu</h1>
+                </ion-header-bar>
+                <ion-content>
+                    <div class="list ">
+                        <a menu-close class="item item-icon-left " href="#/route/dashboard/home ">
+                            <i class="icon ion-ios7-speedometer-outline "></i> Dashboard
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/charts ">
+                            <i class="icon ion-ios7-pie "></i> Charts
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/actions ">
+                            <i class="icon ion-flash "></i> Actions
+                            <span class="badge badge-balanced ">{{actions.length}}</span>
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/devices ">
+                            <i class="icon ion-network "></i> Devices
+                            <span class="badge badge-balanced ">{{devices.length}}</span>
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/locations ">
+                            <i class="icon ion-ios7-location "></i> Locations
+                            <span class="badge badge-balanced ">{{locations.length}}</span>
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/users ">
+                            <i class="icon ion-ios7-people "></i> Users
+                            <span class="badge badge-balanced ">{{users.length}}</span>
+                        </a>
+                        <div class="item item-divider ">
+                            Quick Actions
+                        </div>
+                        <a menu-close class="item item-icon-left " href="#/route/add-device ">
+                            <i class="icon ion-fork-repo "></i> Add Device
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/add-action ">
+                            <i class="icon ion-ios7-plus-empty "></i> Add Action
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/add-location ">
+                            <i class="icon ion-ios7-plus-empty "></i> Add Location
+                        </a>
+                        <a menu-close class="item item-icon-left " href="#/route/add-user ">
+                            <i class="icon ion-ios7-personadd "></i> Add User
+                        </a>
+                        <div class="item item-divider ">
+                            Account
+                        </div>
+                        <a menu-close class="item item-icon-left " href="#/intro ">
+                            <i class="icon ion-power "></i> Intro
+                        </a>
+                    </div>
+                </ion-content>
+            </ion-side-menu>
+        </ion-side-menus>
+    </script>
+    <script id="templates/users.html " type="text/ng-template ">
+        <ion-view title="Users " ng-controller="Users ">
+            <ion-content class="padding-vertical ">
+                <div ng-repeat="user in users ">
+                    <div class="col-lg-33 " on-hold="userHold(user) ">
+                        <div class="card ">
+                            <div class="item item-avatar ">
+                                <img ng-src="{{user.avatar}} ">
+                                <h2>{{ user.username }}</h2>
+                                <p>{{user.lastLogin}} <span ng-show="user.lastLogin=='Online' " class="balanced ">&bull;</span></p>
+                            </div>
+                            <div ng-show="user.location==t rue " class="item item-image ">
+                                <div id="map_{{user.id}} " style="height: 150px; " data-tap-disabled="true "></div>
+                            </div>
+                            <ul class="list ">
+                                <li class="item item-toggle ">
+                                    User Enabled
+                                    <label class="toggle toggle-balanced ">
+										<input type="checkbox " ng-checked="user.enabled=='true' ">
+										<div class="track ">
+											<div class="handle "></div>
+										</div>
+									</label>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </ion-content>
+        </ion-view>
+    </script>
+    <script src="js/jquery-2.1.1.min.js "></script>
+    <script src="js/owl.carousel.min.js "></script>
+</body>
+
+</html>

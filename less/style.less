@@ -1,0 +1,120 @@
+@import "owl/_carousel";				// OWL Carousel styling
+@import "owl/_theme";					// OWL Carousel theme styling
+@import "owl/_transitions";				// OWL Carousel transitions styling
+
+#intro-slide-box {
+	background: url(../img/index-bg.jpg) no-repeat center center fixed;
+	background-size: cover;
+	height: 100vh;
+	.item-input {
+		background: rgba(255,255,255,0.65)
+	}
+}
+.img-responsive {
+	max-width: 100%;
+	height: auto;
+	max-height: 100%;
+}
+.menu-content .pane {
+	background: url('../img/bg.jpg') #ffffff repeat;
+}
+.responsive-image {
+	max-width: 100%;
+	max-height: 65vh;
+	height: auto;
+}
+.chart-wrap {
+	width: 100%;
+	canvas.chart-line,
+	canvas.chart-bar {
+		max-width: 100%;
+		max-height: 350px;
+		height: 350px!important;
+		@media (max-width: 767px){
+			max-height: 170px;
+			height: 170px!important;
+		}
+	}
+}
+.chart-legend, .bar-legend, .line-legend, .pie-legend, .radar-legend, .polararea-legend, .doughnut-legend {
+  list-style-type: none;
+  margin-top: 5px;
+  text-align: center;
+
+  li {
+    display: inline;
+    position: relative;
+    margin-bottom: 4px;
+    border-radius: 5px;
+    padding: 2px 8px 2px 28px;
+    font-size: smaller;
+    cursor: default;
+
+    span {
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 20px;
+      height: 100%;
+      border-radius: 5px;
+    }
+  }
+}
+.col-lg-25 {
+	@media (min-width: 1024px){
+		width: 100%/4;
+		float: left;
+		padding: 5px 10px;
+	}
+}
+.col-lg-33 {
+	@media (min-width: 1024px){
+		width: 100%/3;
+		float: left;
+		padding: 5px 10px;
+	}
+}
+.col-lg-50 {
+	@media (min-width: 1024px){
+		width: 100%/2;
+		float: left;
+		padding: 5px 10px;
+	}
+}
+@media (max-width: 1023px){
+	.responsive-lg {
+		.col,.col-10,.col-20,.col-25,.col-33,.col-34,.col-50,.col-66,.col-67,.col-75,.col-80,.col-90 {
+			margin-bottom: 0px;
+			padding-top: 0px;
+			padding-bottom: 0px;
+		}
+	}
+}
+@media (max-width: 767px){
+	.responsive-md {
+		.col,.col-10,.col-20,.col-25,.col-33,.col-34,.col-50,.col-66,.col-67,.col-75,.col-80,.col-90 {
+			margin-bottom: 0px;
+			padding-top: 0px;
+			padding-bottom: 0px;
+		}
+	}
+}
+@media (max-width: 567px){
+	.responsive-sm {
+		.col,.col-10,.col-20,.col-25,.col-33,.col-34,.col-50,.col-66,.col-67,.col-75,.col-80,.col-90 {
+			margin-bottom: 0px;
+			padding-top: 0px;
+			padding-bottom: 0px;
+		}
+	}
+}
+.owl-carousel {
+	.owl-item {
+		img {
+			display: block;
+			width: 100%;
+			height: auto;
+		}
+	}
+}
